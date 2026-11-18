@@ -13,7 +13,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential ca-certificates cmake curl git patch perl python3 \
-      wget unzip gettext-base dos2unix zlib1g-dev libncurses-dev libperl-dev \
+      wget unzip gettext-base dos2unix libpcre2-dev libpcre3-dev \
+      zlib1g-dev libncurses-dev libperl-dev \
       libreadline-dev libgd-dev libgeoip-dev libxslt1-dev \
     && rm -rf /var/lib/apt/lists/*
 
