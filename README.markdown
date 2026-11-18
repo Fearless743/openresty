@@ -16,6 +16,18 @@ docker run --rm ghcr.io/fearless743/openresty:1.31.9.1 openresty -v
 ```
 
 Tags: `1.31.9.1`, `latest` (default branch), `sha-<commit>`, and `v*` tags.
+
+A 1Panel-compatible variant is also published, with the same tags plus a
+`-1panel` suffix (`1.31.9.1-1panel`, `latest-1panel`, `sha-<commit>-1panel`):
+
+```bash
+docker pull ghcr.io/fearless743/openresty:1.31.9.1-1panel
+```
+
+It adds the 1Panel `1pwaf` WAF program files on top of the same patched
+OpenResty build. See [`1panel/README.md`](1panel/README.md) and
+[`1panel/docker-compose.yml`](1panel/docker-compose.yml) for deployment.
+
 After the first push, make the GHCR package public (or grant your account
 read access) if you want to pull it without a token.
 

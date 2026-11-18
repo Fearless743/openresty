@@ -55,6 +55,30 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Generate 1Panel image tags and labels
+        id: meta-1panel
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          flavor: |
+            suffix=-1panel
+          tags: |
+            type=raw,value=1.31.9.1
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=long
+            type=ref,event=tag
+
+      - name: Build and push (1Panel variant)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.1panel
+          push: true
+          tags: ${{ steps.meta-1panel.outputs.tags }}
+          labels: ${{ steps.meta-1panel.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Verify published image
         run: |
           docker pull ghcr.io/fearless743/openresty:sha-${{ github.sha }}
@@ -62,4 +86,16 @@ jobs:
             ghcr.io/fearless743/openresty:sha-${{ github.sha }} -v
           docker run --rm --entrypoint openresty \
             ghcr.io/fearless743/openresty:sha-${{ github.sha }} -V 2>&1 \
+            | grep -E -- '--with-http_v2_module|--with-http_v3_module'
+
+      - name: Verify 1Panel image
+        run: |
+          docker pull ghcr.io/fearless743/openresty:sha-${{ github.sha }}-1panel
+          docker run --rm --entrypoint openresty \
+            ghcr.io/fearless743/openresty:sha-${{ github.sha }}-1panel -v
+          docker run --rm --entrypoint sh \
+            ghcr.io/fearless743/openresty:sha-${{ github.sha }}-1panel \
+            -c 'test -f /usr/local/openresty/1pwaf/init.lua && echo 1pwaf OK'
+          docker run --rm --entrypoint openresty \
+            ghcr.io/fearless743/openresty:sha-${{ github.sha }}-1panel -V 2>&1 \
             | grep -E -- '--with-http_v2_module|--with-http_v3_module'

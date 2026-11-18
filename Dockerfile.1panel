@@ -1,0 +1,94 @@
+# syntax=docker/dockerfile:1
+#
+# OpenResty 1.31.9.1 (nginx 1.31.9) with 1Panel WAF (1pwaf) compatibility.
+# The nginx2root fixes are included; 1Panel's own nginx.conf / site configs
+# are bind-mounted at runtime, so only the 1pwaf program files need to be
+# baked into the image (1Panel only mounts 1pwaf/data).
+
+# ------------------------- builder -------------------------
+FROM ubuntu:noble AS builder
+
+ARG RESTY_VERSION=1.31.9.1
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential ca-certificates cmake curl git patch perl python3 \
+      wget unzip gettext-base zlib1g-dev libncurses-dev libperl-dev \
+      libreadline-dev libgd-dev libgeoip-dev libxslt1-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+COPY . /src
+
+# openresty.org has no nginx-1.31.9.tar.gz yet (404): seed the cache from
+# nginx.org and add docs/html/ which util/mirror-tarballs expects.
+RUN mkdir -p /src/work /tmp/nginx-pack \
+    && curl -fSL https://nginx.org/download/nginx-1.31.9.tar.gz \
+         -o /tmp/nginx-1.31.9.tar.gz \
+    && tar xzf /tmp/nginx-1.31.9.tar.gz -C /tmp/nginx-pack \
+    && mkdir -p /tmp/nginx-pack/nginx-1.31.9/docs/html \
+    && tar czf /src/work/nginx-1.31.9.tar.gz \
+         -C /tmp/nginx-pack nginx-1.31.9 \
+    && rm -rf /tmp/nginx-pack /tmp/nginx-1.31.9.tar.gz
+
+RUN make
+
+RUN cd /src/openresty-${RESTY_VERSION} \
+    && ./configure \
+         --prefix=/usr/local/openresty \
+         --with-compat \
+         --with-http_ssl_module \
+         --with-http_v2_module \
+         --with-http_v3_module \
+         --with-http_realip_module \
+         --with-http_stub_status_module \
+         --with-stream \
+         --with-stream_ssl_module \
+         --with-mail --with-mail_ssl_module \
+         --without-mail_pop3_module \
+         --without-mail_imap_module \
+         --without-mail_smtp_module \
+    && make -j"$(nproc)" \
+    && make install
+
+# --------------------- 1Panel WAF source ---------------------
+# Only take the 1pwaf program files. 1Panel mounts its own nginx.conf,
+# site configs, and 1pwaf/data at runtime.
+FROM 1panel/openresty:1.31.8.1-2-1-noble AS waf
+
+# ------------------------- runtime -------------------------
+FROM ubuntu:noble
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    WAF_PATH=/usr/local/openresty/1pwaf \
+    PATH=/usr/local/openresty/nginx/sbin:/usr/local/openresty/bin:/usr/local/openresty/luajit/bin:$PATH
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates libpcre2-8-0 zlib1g libgd3 libgeoip1 libxslt1.1 libxml2 perl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local/openresty/ /usr/local/openresty/
+
+# 1pwaf Lua programs and native helpers (rules live in 1pwaf/data and are
+# bind-mounted by 1Panel at runtime).
+COPY --from=waf /usr/local/openresty/1pwaf/ /usr/local/openresty/1pwaf/
+COPY --from=waf /usr/local/openresty/luajit/lib/lua/5.1/lfs.so \
+                /usr/local/openresty/luajit/lib/lua/5.1/lfs.so
+COPY --from=waf /usr/local/openresty/luajit/lib/lua/5.1/lsqlite3.so \
+                /usr/local/openresty/luajit/lib/lua/5.1/lsqlite3.so
+
+RUN mkdir -p /etc/nginx/conf.d /var/run/openresty /var/log/nginx \
+             /usr/local/openresty/nginx/conf/conf.d \
+             /usr/local/openresty/nginx/conf/stream.d \
+             /usr/local/openresty/nginx/conf/http.d \
+             /usr/local/openresty/nginx/conf/default \
+             /usr/local/openresty/nginx/conf/ssl \
+             /usr/local/openresty/nginx/conf/modules-enabled \
+             /usr/local/openresty/nginx/modules/1panel \
+             /usr/share/nginx/html \
+    && ln -sf /dev/stdout /usr/local/openresty/nginx/logs/access.log \
+    && ln -sf /dev/stderr /usr/local/openresty/nginx/logs/error.log
+
+EXPOSE 80 443
+
+CMD ["openresty", "-g", "daemon off;"]
