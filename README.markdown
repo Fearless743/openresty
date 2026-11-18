@@ -3,6 +3,22 @@ Name
 
 OpenResty - Turning Nginx into a Full-Fledged Scriptable Web Platform
 
+Docker image (GHCR)
+===================
+
+This fork tracks OpenResty 1.31.9.1 (nginx 1.31.9), which includes the
+nginx2root security fixes. A GitHub Actions workflow builds and publishes the
+image to the GitHub Container Registry on every push to `master`:
+
+```bash
+docker pull ghcr.io/fearless743/openresty:1.31.9.1
+docker run --rm ghcr.io/fearless743/openresty:1.31.9.1 openresty -v
+```
+
+Tags: `1.31.9.1`, `latest` (default branch), `sha-<commit>`, and `v*` tags.
+After the first push, make the GHCR package public (or grant your account
+read access) if you want to pull it without a token.
+
 Table of Contents
 =================
 
