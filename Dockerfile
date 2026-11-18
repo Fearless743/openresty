@@ -35,11 +35,21 @@ RUN mkdir -p /src/work /tmp/nginx-pack \
 # (mirror-tarballs downloads the remaining bundled components).
 RUN make
 
+# OpenSSL 3.5.x is needed for the HTTP/3 (QUIC) module. Ubuntu noble only
+# ships OpenSSL 3.0, so use the upstream source that nginx builds in-tree.
+ARG OPENSSL_VERSION=3.5.9
+RUN curl -fSL \
+      https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz \
+      -o /tmp/openssl-${OPENSSL_VERSION}.tar.gz \
+    && tar xzf /tmp/openssl-${OPENSSL_VERSION}.tar.gz -C /tmp \
+    && rm -f /tmp/openssl-${OPENSSL_VERSION}.tar.gz
+
 # Compile with HTTP/2 + HTTP/3 enabled, and with the same module set as the
 # official OpenResty images (mail proxy protocols stay disabled).
 RUN cd /src/openresty-${RESTY_VERSION} \
     && ./configure \
          --prefix=/usr/local/openresty \
+         --with-openssl=/tmp/openssl-${OPENSSL_VERSION} \
          --with-compat \
          --with-http_ssl_module \
          --with-http_v2_module \
