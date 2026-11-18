@@ -96,6 +96,12 @@ jobs:
           docker run --rm --entrypoint sh \
             ghcr.io/fearless743/openresty:sha-${{ github.sha }}-1panel \
             -c 'test -f /usr/local/openresty/1pwaf/init.lua && echo 1pwaf OK'
+          docker run --rm --entrypoint sh \
+            ghcr.io/fearless743/openresty:sha-${{ github.sha }}-1panel \
+            -c 'for f in /usr/local/openresty/luajit/lib/lua/5.1/*.so \
+                       /usr/local/openresty/1pwaf/libraries/*.so; do \
+                 ldd "$f" | grep "not found" && exit 1; \
+               done; echo "1pwaf shared objects OK"'
           docker run --rm --entrypoint openresty \
             ghcr.io/fearless743/openresty:sha-${{ github.sha }}-1panel -V 2>&1 \
             | grep -E -- '--with-http_v2_module|--with-http_v3_module'
