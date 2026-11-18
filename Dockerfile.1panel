@@ -75,7 +75,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PATH=/usr/local/openresty/nginx/sbin:/usr/local/openresty/bin:/usr/local/openresty/luajit/bin:$PATH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates libpcre2-8-0 zlib1g libgd3 libgeoip1 libxslt1.1 libxml2 perl \
+      ca-certificates libpcre2-8-0 zlib1g libgd3 libgeoip1 libxslt1.1 libxml2 \
+      libsqlite3-0 perl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/openresty/ /usr/local/openresty/
